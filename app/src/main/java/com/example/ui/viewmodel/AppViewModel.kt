@@ -104,37 +104,12 @@ class AppViewModel(
             }
         }
 
-        // Prepopulate empty database with mock items on startup
-        checkAndPrepopulateData()
         // Fetch AI insights automatically once some data is loaded
         triggerInsightGeneration()
     }
 
     private fun checkAndPrepopulateData() {
-        viewModelScope.launch {
-            // Check tasks
-            tasks.first { true } // wait for first emission
-            if (tasks.value.isEmpty()) {
-                // Populate default mockup tasks
-                repository.insertTask(FocusTask(title = "Finish Calculus HW", category = "Math", priority = "HIGH", subtext = "Due soon • Finance", timeText = "Started 09:30 AM", isInProgress = true, isCompleted = false))
-                repository.insertTask(FocusTask(title = "Data Structures Lab", category = "Technical", priority = "URGENT", subtext = "Priority: High", timeText = "11:00 AM", isInProgress = false, isCompleted = false))
-                repository.insertTask(FocusTask(title = "Group Project Sync", category = "Planning", priority = "MEDIUM", subtext = "3 Subtasks pending", timeText = "2:00 PM", isInProgress = false, isCompleted = false))
-                repository.insertTask(FocusTask(title = "Review Weekly Metrics", category = "Analytics", priority = "LOW", subtext = "Analytics", timeText = "Done 08:45 AM", isInProgress = false, isCompleted = true))
-            }
-            // Check calendar events
-            events.first { true }
-            if (events.value.isEmpty()) {
-                // Populate default classes
-                repository.insertEvent(CalendarEvent(title = "Intro to Algorithms (Lec)", location = "Zoom", timeRange = "14:00 - 15:30", dateText = "Oct 24"))
-                repository.insertEvent(CalendarEvent(title = "Discrete Math (Sem)", location = "Boardroom B", timeRange = "09:00 - 10:00", dateText = "Oct 25"))
-            }
-            // Check notes
-            notes.first { true }
-            if (notes.value.isEmpty()) {
-                repository.insertNote(NoteItem(title = "Algorithms Cheat Sheet", content = "Merge Sort complexity: O(N log N) average/worst. Binary Search: O(log N) in sorted array. Dijkstra's Algorithm finds the shortest path: O((E+V) log V). Space complexity for quicksort is O(log N). Use dynamic programming when subproblems overlap.", summary = "• Focus on Dijkstra's complexity O((E+V) log V) and dynamic programming definitions.\n• Big-O review includes Merge Sort (O(N log N))."))
-                repository.insertNote(NoteItem(title = "Calculus Derivatives", content = "Main derivative formulas:\nd/dx(sin x) = cos x\nd/dx(cos x) = -sin x\nd/dx(tan x) = sec^2 x\nd/dx(e^x) = e^x\nChain rule: [f(g(x))]' = f'(g(x)) * g'(x)\nProduct rule: [u*v]' = u'*v + u*v'. Need formulas for today's quiz.", summary = "• Main derivative formulas include trigonometric, exponential functions, and Chain rule f'(g(x)) * g'(x).\n• Review these specific equations before the upcoming weekly online exam."))
-            }
-        }
+        // No prewritten or hardcoded mock data on startup for a clean dynamic experience
     }
 
     // --- Task Actions & Firestore Integration ---
