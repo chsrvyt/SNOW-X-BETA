@@ -268,4 +268,63 @@ class AppRepository(
             "Could not connect to summarize."
         }
     }
+
+    /**
+     * Module that uses the Gemini API to analyze task difficulty and suggest a prioritized study schedule.
+     */
+    suspend fun getDifficultyPrioritizedSchedule(tasks: List<FocusTask>, events: List<CalendarEvent>): String = withContext(Dispatchers.IO) {
+        val apiKey = BuildConfig.GEMINI_API_KEY
+        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+            return@withContext "API Key not configured. Please enter your GEMINI_API_KEY inside the Secrets panel of Google AI Studio."
+        }
+
+        if (tasks.none { !it.isCompleted }) {
+            return@withContext "You have no pending academic tasks to rank! Add some check items in the Checklist Tasks tab to construct your schedule analysis."
+        }
+
+        val tasksString = tasks.filter { !it.isCompleted }.joinToString("\n") { 
+            "- ${it.title} (Subject/Category: ${it.category}, Priority: ${it.priority}, Notes: ${it.subtext}, Est: ${it.timeText})" 
+        }
+        val eventsString = if (events.isEmpty()) {
+            "No scheduled class events or deadlines today."
+        } else {
+            events.joinToString("\n") { 
+                "- ${it.title} at ${it.timeRange} (${it.location}) [${it.dateText}]" 
+            }
+        }
+
+        val prompt = """
+            You are the SNOW-X AI Prioritized Academic Scheduler, powered by Gemini 3.5.
+            Your purpose is to analyze the student's task difficulty level, correlate with their upcoming Google Calendar events or classroom checkpoints, and output a highly optimized academic study plan.
+            
+            Current workload pending details:
+            $tasksString
+            
+            Upcoming Google Calendar lectures / checkpoints:
+            $eventsString
+            
+            Please organize your response beautifully using clean layout and bullet points:
+            
+            1. **Task Difficulty Matrix**: Categorize each pending task into [HARD] (high cognitive subjects or urgent priority), [MEDIUM], or [EASY] (routine study, quick tasks), adding a 1-sentence analytical reason why.
+            2. **Event-Aware Prioritized Block Plan**: Recommend 2-3 specific focus slots relative to upcoming classes/events today or tomorrow (e.g., "Deep Focus Block (Math) - 10:00 to 11:30" during free gaps) with actionable reasoning.
+            3. **Cognitive Synergy Recommendation**: Give a 1-sentence elite focus tip tailored specifically to managing low-difficulty versus high-difficulty subjects together.
+            
+            Be crisp, authoritative, motivational, clear, and ensure the tone is extremely sharp and academic. No generic talk. Limit response under 250 words total.
+        """.trimIndent()
+
+        try {
+            val response = RetrofitClient.service.generateContent(
+                apiKey = apiKey,
+                request = GeminiRequest(
+                    contents = listOf(
+                        GeminiContent(parts = listOf(GeminiPart(text = prompt)))
+                    )
+                )
+            )
+            response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text?.trim()
+                ?: "No recommendation generated. Check back in a moment."
+        } catch (e: Exception) {
+            "Analysis Error: ${e.message ?: "Failed to query Gemini. Please verify your internet connection."}"
+        }
+    }
 }

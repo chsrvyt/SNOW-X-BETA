@@ -20,6 +20,16 @@ class AppViewModel(
     private val repository: AppRepository
 ) : AndroidViewModel(application) {
 
+    // --- Firebase Authentication States ---
+    private val _currentUser = MutableStateFlow<com.google.firebase.auth.FirebaseUser?>(null)
+    val currentUser: StateFlow<com.google.firebase.auth.FirebaseUser?> = _currentUser.asStateFlow()
+
+    private val _authStatusMessage = MutableStateFlow<String?>(null)
+    val authStatusMessage: StateFlow<String?> = _authStatusMessage.asStateFlow()
+
+    private val _isAuthLoading = MutableStateFlow(false)
+    val isAuthLoading: StateFlow<Boolean> = _isAuthLoading.asStateFlow()
+
     // --- Database Flows ---
     val tasks: StateFlow<List<FocusTask>> = repository.allTasks
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
@@ -46,6 +56,13 @@ class AppViewModel(
 
     private val _isInsightsLoading = MutableStateFlow(false)
     val isInsightsLoading: StateFlow<Boolean> = _isInsightsLoading.asStateFlow()
+
+    // --- Prioritized Study Schedule States ---
+    private val _prioritizedSchedule = MutableStateFlow<String?>(null)
+    val prioritizedSchedule: StateFlow<String?> = _prioritizedSchedule.asStateFlow()
+
+    private val _isPrioritizedScheduleLoading = MutableStateFlow(false)
+    val isPrioritizedScheduleLoading: StateFlow<Boolean> = _isPrioritizedScheduleLoading.asStateFlow()
 
     // --- AI Chat Assistant States ---
     private val _chatMessages = MutableStateFlow<List<Pair<String, Boolean>>>(
@@ -74,6 +91,19 @@ class AppViewModel(
     private var pomodoroJob: Job? = null
 
     init {
+        // Initialize dynamic Firebase Framework
+        com.example.data.api.FirebaseHelper.initialize(application)
+
+        // Read initial user and register listener
+        com.example.data.api.FirebaseHelper.auth?.addAuthStateListener { fa ->
+            _currentUser.value = fa.currentUser
+            if (fa.currentUser != null) {
+                startFirestoreSync()
+            } else {
+                stopFirestoreSync()
+            }
+        }
+
         // Prepopulate empty database with mock items on startup
         checkAndPrepopulateData()
         // Fetch AI insights automatically once some data is loaded
@@ -107,11 +137,39 @@ class AppViewModel(
         }
     }
 
-    // --- Task Actions ---
+    // --- Task Actions & Firestore Integration ---
+
+    fun FocusTask.toMap(): Map<String, Any> {
+        return mapOf(
+            "id" to id,
+            "title" to title,
+            "category" to category,
+            "priority" to priority,
+            "subtext" to subtext,
+            "timeText" to timeText,
+            "isInProgress" to isInProgress,
+            "isCompleted" to isCompleted,
+            "createdAt" to createdAt
+        )
+    }
+
+    fun Map<String, Any>.toFocusTask(): FocusTask {
+        return FocusTask(
+            id = (this["id"] as? Long)?.toInt() ?: (this["id"] as? Double)?.toInt() ?: 0,
+            title = this["title"] as? String ?: "",
+            category = this["category"] as? String ?: "General",
+            priority = this["priority"] as? String ?: "MEDIUM",
+            subtext = this["subtext"] as? String ?: "",
+            timeText = this["timeText"] as? String ?: "",
+            isInProgress = this["isInProgress"] as? Boolean ?: false,
+            isCompleted = this["isCompleted"] as? Boolean ?: false,
+            createdAt = this["createdAt"] as? Long ?: System.currentTimeMillis()
+        )
+    }
 
     fun addTask(title: String, category: String, priority: String, subtext: String, timeText: String) {
         viewModelScope.launch {
-            repository.insertTask(FocusTask(
+            val task = FocusTask(
                 title = title,
                 category = category,
                 priority = priority,
@@ -119,7 +177,24 @@ class AppViewModel(
                 timeText = timeText,
                 isInProgress = false,
                 isCompleted = false
-            ))
+            )
+            repository.insertTask(task)
+            
+            // Play sound tick
+            com.example.util.NotificationSoundHelper.playStartClickSfx()
+
+            // Firestore sync
+            val user = _currentUser.value ?: com.example.data.api.FirebaseHelper.currentUser
+            val db = com.example.data.api.FirebaseHelper.firestore
+            if (user != null && db != null) {
+                val latest = repository.allTasks.first()
+                val matched = latest.find { it.title == title && it.createdAt == task.createdAt }
+                if (matched != null) {
+                    db.collection("users").document(user.uid)
+                        .collection("tasks").document(matched.id.toString())
+                        .set(matched.toMap())
+                }
+            }
             triggerInsightGeneration()
         }
     }
@@ -127,11 +202,28 @@ class AppViewModel(
     fun toggleTaskProgress(task: FocusTask) {
         viewModelScope.launch {
             val updated = when {
-                !task.isInProgress && !task.isCompleted -> task.copy(isInProgress = true, isCompleted = false)
-                task.isInProgress -> task.copy(isInProgress = false, isCompleted = true)
-                else -> task.copy(isInProgress = false, isCompleted = false)
+                !task.isInProgress && !task.isCompleted -> {
+                    com.example.util.NotificationSoundHelper.playStartClickSfx()
+                    task.copy(isInProgress = true, isCompleted = false)
+                }
+                task.isInProgress -> {
+                    com.example.util.NotificationSoundHelper.playCompleteChime()
+                    task.copy(isInProgress = false, isCompleted = true)
+                }
+                else -> {
+                    com.example.util.NotificationSoundHelper.playStartClickSfx()
+                    task.copy(isInProgress = false, isCompleted = false)
+                }
             }
             repository.updateTask(updated)
+
+            val user = _currentUser.value ?: com.example.data.api.FirebaseHelper.currentUser
+            val db = com.example.data.api.FirebaseHelper.firestore
+            if (user != null && db != null) {
+                db.collection("users").document(user.uid)
+                    .collection("tasks").document(updated.id.toString())
+                    .set(updated.toMap())
+            }
             triggerInsightGeneration()
         }
     }
@@ -139,6 +231,14 @@ class AppViewModel(
     fun deleteTask(task: FocusTask) {
         viewModelScope.launch {
             repository.deleteTask(task)
+
+            val user = _currentUser.value ?: com.example.data.api.FirebaseHelper.currentUser
+            val db = com.example.data.api.FirebaseHelper.firestore
+            if (user != null && db != null) {
+                db.collection("users").document(user.uid)
+                    .collection("tasks").document(task.id.toString())
+                    .delete()
+            }
             triggerInsightGeneration()
         }
     }
@@ -247,6 +347,17 @@ class AppViewModel(
         }
     }
 
+    fun generatePrioritizedSchedule() {
+        viewModelScope.launch {
+            _isPrioritizedScheduleLoading.value = true
+            val activeTasks = tasks.value
+            val activeEvents = events.value
+            val schedule = repository.getDifficultyPrioritizedSchedule(activeTasks, activeEvents)
+            _prioritizedSchedule.value = schedule
+            _isPrioritizedScheduleLoading.value = false
+        }
+    }
+
     // --- AI Chat Companion ---
 
     fun sendChatMessage(message: String) {
@@ -277,6 +388,7 @@ class AppViewModel(
     // --- Pomodoro Operations ---
 
     fun togglePomodoro() {
+        com.example.util.NotificationSoundHelper.playStartClickSfx()
         if (_isPomodoroRunning.value) {
             pausePomodoro()
         } else {
@@ -292,7 +404,9 @@ class AppViewModel(
                 _pomodoroTimeLeft.value--
             }
             if (_pomodoroTimeLeft.value == 0) {
-                // Completed! Switch modes or play beep
+                // Completed! Play beautiful academic notify chime
+                com.example.util.NotificationSoundHelper.playCompleteChime()
+                
                 if (_currentPomodoroType.value == "DEEP WORK") {
                     _currentPomodoroType.value = "SHORT BREAK"
                     _pomodoroTimeLeft.value = 5 * 60
@@ -311,7 +425,6 @@ class AppViewModel(
     }
 
     fun presetTaskPomodoro(taskTitle: String) {
-        // Set deep work focus mode for a designated task
         _currentPomodoroType.value = "DEEP WORK"
         _pomodoroTimeLeft.value = 25 * 60
         startPomodoro()
@@ -324,9 +437,139 @@ class AppViewModel(
     }
 
     fun resetPomodoro() {
+        com.example.util.NotificationSoundHelper.playStartClickSfx()
         pausePomodoro()
         _currentPomodoroType.value = "DEEP WORK"
         _pomodoroTimeLeft.value = 25 * 60
+    }
+
+    // --- User Authentication Actions ---
+
+    fun clearAuthStatusMessage() {
+        _authStatusMessage.value = null
+    }
+
+    fun signInAnonymously() {
+        _isAuthLoading.value = true
+        _authStatusMessage.value = null
+        val auth = com.example.data.api.FirebaseHelper.auth
+        if (auth == null) {
+            _authStatusMessage.value = "Framework inactive. Simulation mode."
+            _isAuthLoading.value = false
+            return
+        }
+        auth.signInAnonymously().addOnCompleteListener { task ->
+            _isAuthLoading.value = false
+            if (task.isSuccessful) {
+                _currentUser.value = task.result?.user
+                _authStatusMessage.value = "Signed in anonymously! Task cloud sync enabled."
+                startFirestoreSync()
+            } else {
+                _authStatusMessage.value = "Anonymous Login Error: ${task.exception?.message}"
+            }
+        }
+    }
+
+    fun signInWithEmail(email: String, password: String) {
+        if (email.isBlank() || password.isBlank()) {
+            _authStatusMessage.value = "Email and Password cannot be empty."
+            return
+        }
+        _isAuthLoading.value = true
+        _authStatusMessage.value = null
+        val auth = com.example.data.api.FirebaseHelper.auth
+        if (auth == null) {
+            _authStatusMessage.value = "Framework inactive. Simulation mode."
+            _isAuthLoading.value = false
+            return
+        }
+        auth.signInWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                _isAuthLoading.value = false
+                _currentUser.value = task.result?.user
+                _authStatusMessage.value = "Successfully Logged In! Cloud sync activated."
+                startFirestoreSync()
+            } else {
+                // If login fails (user might not exist), automatically register!
+                signUpWithEmail(email, password)
+            }
+        }
+    }
+
+    fun signUpWithEmail(email: String, password: String) {
+        val auth = com.example.data.api.FirebaseHelper.auth ?: return
+        auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+            _isAuthLoading.value = false
+            if (task.isSuccessful) {
+                _currentUser.value = task.result?.user
+                _authStatusMessage.value = "New Account created and linked successfully!"
+                startFirestoreSync()
+            } else {
+                _authStatusMessage.value = "Login/Register failed: ${task.exception?.message}"
+            }
+        }
+    }
+
+    fun signOut() {
+        stopFirestoreSync()
+        com.example.data.api.FirebaseHelper.auth?.signOut()
+        _currentUser.value = null
+        _authStatusMessage.value = "Successfully signed out. Switched back to local-only cache."
+    }
+
+    private var firestoreListener: com.google.firebase.firestore.ListenerRegistration? = null
+
+    fun startFirestoreSync() {
+        val user = _currentUser.value ?: com.example.data.api.FirebaseHelper.currentUser ?: return
+        val db = com.example.data.api.FirebaseHelper.firestore ?: return
+        val uid = user.uid
+
+        // 1. Initial push of local tasks to user's remote list
+        viewModelScope.launch {
+            try {
+                val currentLocalTasks = tasks.value
+                for (t in currentLocalTasks) {
+                    db.collection("users").document(uid)
+                        .collection("tasks").document(t.id.toString())
+                        .set(t.toMap())
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AppViewModel", "Initial firestore upload exception", e)
+            }
+        }
+
+        // 2. Clear previous listeners
+        firestoreListener?.remove()
+
+        // 3. Register real-time remote-to-local synchronization listener
+        firestoreListener = db.collection("users").document(uid)
+            .collection("tasks")
+            .addSnapshotListener { snapshots, error ->
+                if (error != null) {
+                    android.util.Log.e("AppViewModel", "Firestore sync snapshot error", error)
+                    return@addSnapshotListener
+                }
+                if (snapshots != null) {
+                    viewModelScope.launch {
+                        for (doc in snapshots.documents) {
+                            val data = doc.data
+                            if (data != null) {
+                                try {
+                                    val cloudTask = data.toFocusTask()
+                                    repository.insertTask(cloudTask)
+                                } catch (ex: Exception) {
+                                    // ignore corrupt document
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+    }
+
+    fun stopFirestoreSync() {
+        firestoreListener?.remove()
+        firestoreListener = null
     }
 }
 

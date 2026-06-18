@@ -10,6 +10,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -105,6 +110,21 @@ fun DashboardTab(
             }
         }
 
+        // Firebase Cloud database control card
+        item {
+            FirebaseAuthSyncCard(viewModel = viewModel)
+        }
+
+        // Weekly Focus Breakdown Chart Card (Custom Compose alternative to Recharts)
+        item {
+            WeeklyCategoryFocusCard(tasks = tasks)
+        }
+
+        // Gemini Prioritized Academic Schedule Module
+        item {
+            GeminiPrioritizedScheduleCard(viewModel = viewModel)
+        }
+
         // Bento Grid Row 1: AI Insight + Daily Progress Circle (Adaptive Row / Wrap)
         item {
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -147,62 +167,98 @@ fun DashboardTab(
             }
         }
 
-        // Bento Grid Row 2: Tasks + Pomodoro Widget / Events (Adaptive layout)
+        // Bento Grid Row 2: Unified Side-By-Side Workspace (Tasks, Timer, Calendar Events in 3 columns)
         item {
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val isWide = maxWidth >= 680.dp
-                if (isWide) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Unified Cohesive Workspace",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                    
+                    Surface(
+                        color = Redline.copy(alpha = 0.15f),
+                        border = BorderStroke(1.dp, Redline.copy(alpha = 0.4f)),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Box(modifier = Modifier.weight(1.6f)) {
-                            DashboardTasksCard(
-                                tasks = tasks,
-                                onToggleProgress = { viewModel.toggleTaskProgress(it) },
-                                onViewAll = onNavigateToTasks
-                            )
-                        }
-                        Column(
-                            modifier = Modifier.weight(1.4f),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            PomodoroWidgetCard(
-                                pomodoroTime = pomodoroTime,
-                                isRunning = isPomodoroRunning,
-                                sessionIndex = pomodoroSession,
-                                focusType = pomodoroType,
-                                onToggle = { viewModel.togglePomodoro() },
-                                onReset = { viewModel.resetPomodoro() }
-                            )
-                            TodayScheduleCard(
-                                events = events,
-                                onOpenCalendar = onNavigateToCalendar
-                            )
-                        }
+                        Text(
+                            text = "Side-by-Side View",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = Redline),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
                     }
-                } else {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        PomodoroWidgetCard(
-                            pomodoroTime = pomodoroTime,
-                            isRunning = isPomodoroRunning,
-                            sessionIndex = pomodoroSession,
-                            focusType = pomodoroType,
-                            onToggle = { viewModel.togglePomodoro() },
-                            onReset = { viewModel.resetPomodoro() }
-                        )
-                        DashboardTasksCard(
-                            tasks = tasks,
-                            onToggleProgress = { viewModel.toggleTaskProgress(it) },
-                            onViewAll = onNavigateToTasks
-                        )
-                        TodayScheduleCard(
-                            events = events,
-                            onOpenCalendar = onNavigateToCalendar
-                        )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val width = maxWidth
+                    if (width >= 960.dp) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                DashboardTasksCard(
+                                    tasks = tasks,
+                                    onToggleProgress = { viewModel.toggleTaskProgress(it) },
+                                    onViewAll = onNavigateToTasks
+                                )
+                            }
+                            Box(modifier = Modifier.weight(1f)) {
+                                PomodoroWidgetCard(
+                                    pomodoroTime = pomodoroTime,
+                                    isRunning = isPomodoroRunning,
+                                    sessionIndex = pomodoroSession,
+                                    focusType = pomodoroType,
+                                    onToggle = { viewModel.togglePomodoro() },
+                                    onReset = { viewModel.resetPomodoro() }
+                                )
+                            }
+                            Box(modifier = Modifier.weight(1f)) {
+                                TodayScheduleCard(
+                                    events = events,
+                                    onOpenCalendar = onNavigateToCalendar
+                                )
+                            }
+                        }
+                    } else {
+                        // Horizontal Paging side-by-side workspace on narrow screens so mobile users get exact same side-by-side integration!
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Box(modifier = Modifier.width(310.dp)) {
+                                DashboardTasksCard(
+                                    tasks = tasks,
+                                    onToggleProgress = { viewModel.toggleTaskProgress(it) },
+                                    onViewAll = onNavigateToTasks
+                                )
+                            }
+                            Box(modifier = Modifier.width(310.dp)) {
+                                PomodoroWidgetCard(
+                                    pomodoroTime = pomodoroTime,
+                                    isRunning = isPomodoroRunning,
+                                    sessionIndex = pomodoroSession,
+                                    focusType = pomodoroType,
+                                    onToggle = { viewModel.togglePomodoro() },
+                                    onReset = { viewModel.resetPomodoro() }
+                                )
+                            }
+                            Box(modifier = Modifier.width(310.dp)) {
+                                TodayScheduleCard(
+                                    events = events,
+                                    onOpenCalendar = onNavigateToCalendar
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -944,6 +1000,562 @@ fun TodayScheduleCard(
                 border = BorderStroke(1.dp, OutlineDark)
             ) {
                 Text(text = "Open Calendar", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+            }
+        }
+    }
+}
+
+@Composable
+fun FirebaseAuthSyncCard(
+    viewModel: AppViewModel,
+    modifier: Modifier = Modifier
+) {
+    val currentUser by viewModel.currentUser.collectAsState()
+    val authStatus by viewModel.authStatusMessage.collectAsState()
+    val isAuthLoading by viewModel.isAuthLoading.collectAsState()
+
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var isExpanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(
+                BorderStroke(
+                    1.dp,
+                    if (currentUser != null) Color.Green.copy(alpha = 0.4f) else Redline.copy(alpha = 0.3f)
+                ),
+                shape = RoundedCornerShape(24.dp)
+            )
+            .testTag("firebase_auth_sync_card"),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (currentUser != null) Icons.Default.CloudQueue else Icons.Default.CloudOff,
+                        contentDescription = "Sync",
+                        tint = if (currentUser != null) Color.Green else Redline,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Column {
+                        Text(
+                            text = "Cloud Database Sync",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            color = OnDark
+                        )
+                        Text(
+                            text = if (currentUser != null) "Realtime Firestore active" else "Running in local cache mode",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = OnDarkVariant
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = { isExpanded = !isExpanded },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (currentUser != null) Color.Green.copy(alpha = 0.15f) else Redline.copy(alpha = 0.1f),
+                        contentColor = if (currentUser != null) Color.Green else Redline
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = if (currentUser != null) "Linked" else "Connect Account",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+            }
+
+            if (authStatus != null) {
+                Surface(
+                    color = if (currentUser != null) Color.Green.copy(alpha = 0.08f) else Color.Red.copy(alpha = 0.08f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, if (currentUser != null) Color.Green.copy(alpha = 0.2f) else Color.Red.copy(alpha = 0.2f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = authStatus ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (currentUser != null) Color.Green else Color.Red,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = { viewModel.clearAuthStatusMessage() },
+                            modifier = Modifier.size(18.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.Close, contentDescription = "Dismiss", tint = OnDarkVariant, modifier = Modifier.size(12.dp))
+                        }
+                    }
+                }
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (currentUser == null) {
+                        Text(
+                            text = "Link your study tracker with Google Firebase Firestore to sync your tasks instantly across devices.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = OnDarkVariant
+                        )
+
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it },
+                            label = { Text("Email Address") },
+                            placeholder = { Text("e.g. sarveshchonde@gmail.com") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Redline,
+                                unfocusedBorderColor = OutlineDark,
+                                focusedTextColor = OnDark,
+                                unfocusedTextColor = OnDarkVariant
+                            ),
+                            singleLine = true
+                        )
+
+                        OutlinedTextField(
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("Secure Password") },
+                            placeholder = { Text("••••••••") },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Redline,
+                                unfocusedBorderColor = OutlineDark,
+                                focusedTextColor = OnDark,
+                                unfocusedTextColor = OnDarkVariant
+                            ),
+                            singleLine = true
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    viewModel.signInWithEmail(email, password)
+                                },
+                                enabled = !isAuthLoading && email.isNotBlank() && password.isNotBlank(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Redline, contentColor = SurfaceBlack),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1.2f)
+                            ) {
+                                if (isAuthLoading) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = SurfaceBlack, strokeWidth = 2.dp)
+                                } else {
+                                    Text("Log In / Sign Up", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                                }
+                            }
+
+                            OutlinedButton(
+                                onClick = { viewModel.signInAnonymously() },
+                                enabled = !isAuthLoading,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = OnDark),
+                                border = BorderStroke(1.dp, OutlineDark),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(0.8f)
+                            ) {
+                                Text("Guest Sync")
+                            }
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Logged in as:",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = OnDarkVariant
+                            )
+                            Text(
+                                text = currentUser?.email ?: "Guest Account",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = OnDark
+                            )
+                            Text(
+                                text = "Your academic checklist tasks are synchronized with Google Cloud Firestore database in real-time.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = OnDarkVariant
+                            )
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Button(
+                                    onClick = { viewModel.startFirestoreSync() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green.copy(alpha = 0.2f), contentColor = Color.Green),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Force Sync", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                                }
+
+                                OutlinedButton(
+                                    onClick = { viewModel.signOut() },
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                                    border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(imageVector = Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Disconnect")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- Custom Category Focus Time Breakdown Chart (Recharts Native Compose Equivalent) ---
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun WeeklyCategoryFocusCard(tasks: List<FocusTask>, modifier: Modifier = Modifier) {
+    // Helper to parse duration text to minutes
+    fun parseTimeToMinutesRaw(timeText: String): Int {
+        val clean = timeText.lowercase().trim()
+        if (clean.isEmpty()) return 25
+        val numeric = clean.filter { it.isDigit() }.toIntOrNull() ?: 25
+        return if (clean.contains("hour") || clean.contains("hr")) {
+            numeric * 60
+        } else {
+            numeric
+        }
+    }
+
+    // Grouping & aggregate focus times (both completed and pending tasks to show accumulated week efforts!)
+    val categorySumMap = remember(tasks) {
+        tasks.groupBy { it.category.trim().ifEmpty { "General" } }
+            .mapValues { (_, taskList) ->
+                taskList.sumOf { parseTimeToMinutesRaw(it.timeText) }
+            }.filter { it.value > 0 }
+    }
+
+    val totalTimeMinutes = remember(categorySumMap) {
+        categorySumMap.values.sum()
+    }
+
+    // Modern cyber academic color palette
+    val categoryColors = remember {
+        mapOf(
+            "Calculus" to Color(0xFF00ADB5),
+            "Math" to Color(0xFF00ADB5),
+            "Algorithms" to Color(0xFFFF2E93),
+            "CS" to Color(0xFFFF2E93),
+            "Physics" to Color(0xFFFFC045),
+            "Science" to Color(0xFFFFC045),
+            "Humanities" to Color(0xFF8A99AD),
+            "General" to Color(0xFFBB86FC)
+        )
+    }
+
+    fun getColorForCategory(cat: String): Color {
+        return categoryColors[cat] ?: categoryColors.entries.firstOrNull { cat.contains(it.key, ignoreCase = true) }?.value ?: Color(0xFF8A2BE2)
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, OutlineDark, RoundedCornerShape(24.dp))
+            .testTag("weekly_focus_breakdown_card"),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BarChart,
+                        contentDescription = null,
+                        tint = Redline
+                    )
+                    Text(
+                        text = "Subject Study Breakdown",
+                        fontWeight = FontWeight.Bold,
+                        color = OnDark
+                    )
+                }
+
+                Text(
+                    text = "${totalTimeMinutes / 60}h ${totalTimeMinutes % 60}m Total",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Redline
+                )
+            }
+
+            Text(
+                text = "Visualization representing total study minutes allocated per subject category throughout the current academic cycle.",
+                style = MaterialTheme.typography.bodySmall,
+                color = OnDarkVariant
+            )
+
+            if (totalTimeMinutes == 0) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp)
+                        .background(SurfaceDarker, RoundedCornerShape(12.dp))
+                        .border(1.dp, OutlineDark, RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No recorded focus task categories. Create checklists to begin.",
+                        color = OnDarkVariant,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            } else {
+                // Stacked custom progress bar
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(16.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(OutlineDark)
+                    ) {
+                        categorySumMap.forEach { (cat, minutes) ->
+                            val weight = minutes.toWeightValue()
+                            if (weight > 0f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .weight(weight)
+                                        .background(getColorForCategory(cat))
+                                )
+                            }
+                        }
+                    }
+
+                    // Interactive Legends Flow row mapping
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        categorySumMap.forEach { (cat, minutes) ->
+                            val percentage = (minutes.toFloat() / totalTimeMinutes.toFloat() * 100).toInt()
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(getColorForCategory(cat))
+                                )
+                                Text(
+                                    text = "$cat: ${minutes}m ($percentage%)",
+                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                                    color = OnDark
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Ext helper for Weight mapping safely
+private fun Int.toWeightValue(): Float {
+    return this.toFloat().coerceAtLeast(1f)
+}
+
+// --- Gemini Prioritized Study Schedule Card Module ---
+
+@Composable
+fun GeminiPrioritizedScheduleCard(
+    viewModel: AppViewModel,
+    modifier: Modifier = Modifier
+) {
+    val schedule by viewModel.prioritizedSchedule.collectAsState()
+    val isLoading by viewModel.isPrioritizedScheduleLoading.collectAsState()
+
+    val infiniteTransition = rememberInfiniteTransition(label = "prioritizer_glow")
+    val glowBorderColor by infiniteTransition.animateColor(
+        initialValue = OutlineDark,
+        targetValue = Redline.copy(alpha = 0.5f),
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 3500
+                OutlineDark at 0
+                Redline.copy(alpha = 0.50f) at 1750
+                OutlineDark at 3500
+            },
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scheduler_border"
+    )
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, glowBorderColor, RoundedCornerShape(24.dp))
+            .testTag("gemini_prioritizer_card"),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = Redline
+                    )
+                    Text(
+                        text = "Gemini Focus Scheduler",
+                        fontWeight = FontWeight.ExtraBold,
+                        color = OnDark
+                    )
+                }
+
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Redline,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Surface(
+                        color = Redline.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "AI AGENT",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Redline,
+                                letterSpacing = 0.5.sp
+                            ),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(SurfaceDarker, RoundedCornerShape(16.dp))
+                    .border(1.dp, OutlineDark, RoundedCornerShape(16.dp))
+                    .padding(16.dp)
+            ) {
+                if (schedule == null) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Analyze workload difficulties and generate optimal blocks.",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = OnDark
+                        )
+                        Text(
+                            text = "Click 'Analyze Workload' below. Gemini will evaluate the relative cognitive difficulty of your active check tasks and suggest an optimal, event-prioritized schedule around your synced classes.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnDarkVariant
+                        )
+                    }
+                } else {
+                    SelectionContainer {
+                        Text(
+                            text = schedule ?: "",
+                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
+                            color = OnDark
+                        )
+                    }
+                }
+            }
+
+            Button(
+                onClick = { viewModel.generatePrioritizedSchedule() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Redline,
+                    contentColor = SurfaceBlack
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoading
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Timeline,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = if (isLoading) "Running Analysis..." else "Analyze Workload & Prioritize",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
             }
         }
     }
