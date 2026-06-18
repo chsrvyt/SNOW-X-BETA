@@ -4,6 +4,8 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -134,7 +136,9 @@ fun AssistantTab(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = "SUGGESTED DISCUSSIONS", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = Redline)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val suggestions = listOf(
@@ -212,13 +216,13 @@ fun ChatBubbleRow(text: String, isUser: Boolean) {
     ) {
         Box(
             modifier = Modifier
-                .widthIn(max = 280.dp)
+                .fillMaxWidth(0.78f)
                 .clip(
                     RoundedCornerShape(
-                        topStart = 8.dp,
-                        topEnd = 8.dp,
-                        bottomStart = if (isUser) 8.dp else 0.dp,
-                        bottomEnd = if (isUser) 0.dp else 8.dp
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isUser) 16.dp else 4.dp,
+                        bottomEnd = if (isUser) 4.dp else 16.dp
                     )
                 )
                 .background(if (isUser) Redline.copy(alpha = 0.15f) else SurfaceDark)
@@ -226,13 +230,13 @@ fun ChatBubbleRow(text: String, isUser: Boolean) {
                     1.dp,
                     if (isUser) Redline.copy(alpha = 0.5f) else OutlineDark,
                     RoundedCornerShape(
-                        topStart = 8.dp,
-                        topEnd = 8.dp,
-                        bottomStart = if (isUser) 8.dp else 0.dp,
-                        bottomEnd = if (isUser) 0.dp else 8.dp
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isUser) 16.dp else 4.dp,
+                        bottomEnd = if (isUser) 4.dp else 16.dp
                     )
                 )
-                .padding(12.dp)
+                .padding(14.dp)
         ) {
             Text(
                 text = text,

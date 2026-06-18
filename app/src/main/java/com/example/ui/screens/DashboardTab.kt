@@ -83,6 +83,73 @@ fun DashboardTab(
         contentPadding = PaddingValues(bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
+        // Cinematic Header Banner
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .border(1.dp, OutlineDark, RoundedCornerShape(24.dp))
+                    .testTag("dashboard_hero_card"),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Background Image
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = com.example.R.drawable.img_hero_banner),
+                        contentDescription = "SNOW-X Hero",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    
+                    // Dark linear overlay for perfect text contrast
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        SurfaceBlack.copy(alpha = 0.85f)
+                                    )
+                                )
+                            )
+                    )
+                    
+                    // Active Status Pillar Accent
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Surface(
+                            color = Redline.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, Redline),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "FOCUS SYSTEM SYNERGY ACTIVE",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 1.2.sp
+                                ),
+                                color = Redline,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                        
+                        Text(
+                            text = "Aesthetic Peak Academic Command",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            color = OnDark
+                        )
+                    }
+                }
+            }
+        }
+
         // Welcome Header
         item {
             Column {
@@ -1523,11 +1590,7 @@ fun GeminiPrioritizedScheduleCard(
                     }
                 } else {
                     SelectionContainer {
-                        Text(
-                            text = schedule ?: "",
-                            style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
-                            color = OnDark
-                        )
+                        MarkdownScheduleRenderer(text = schedule ?: "")
                     }
                 }
             }
@@ -1556,6 +1619,183 @@ fun GeminiPrioritizedScheduleCard(
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun MarkdownScheduleRenderer(text: String, modifier: Modifier = Modifier) {
+    val lines = remember(text) { text.split("\n") }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        lines.forEach { line ->
+            val trimmedLine = line.trim()
+            if (trimmedLine.isEmpty()) return@forEach
+
+            // Check if it is a Section Header, containing e.g. "Difficulty Matrix", "Block Plan", "Synergy"
+            val isHeader = trimmedLine.contains("Difficulty Matrix", ignoreCase = true) ||
+                    trimmedLine.contains("Block Plan", ignoreCase = true) ||
+                    trimmedLine.contains("Synergy", ignoreCase = true) ||
+                    (trimmedLine.firstOrNull()?.isDigit() == true && trimmedLine.contains("**"))
+
+            if (isHeader) {
+                // Clear out asterisks, numbers at the beginning
+                val cleanTitle = trimmedLine
+                    .replace(Regex("^\\d+\\.\\s*"), "")
+                    .replace("**", "")
+                    .trim()
+
+                val (icon, tint) = when {
+                    cleanTitle.contains("Difficulty", ignoreCase = true) -> Icons.Default.BarChart to Redline
+                    cleanTitle.contains("Plan", ignoreCase = true) -> Icons.Default.EditCalendar to Color(0xFF00ADB5)
+                    else -> Icons.Default.Psychology to Color(0xFFFFC045)
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SurfaceDark, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = tint,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = cleanTitle,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                }
+            } else if (trimmedLine.startsWith("-") || trimmedLine.startsWith("*")) {
+                // List bullet item
+                val content = trimmedLine.removePrefix("-").removePrefix("*").trim()
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .size(5.dp)
+                            .background(Redline, CircleShape)
+                    )
+                    
+                    Column(modifier = Modifier.weight(1f)) {
+                        // Check for tags like [HARD], [MEDIUM], [EASY]
+                        val hasHard = content.contains("[HARD]", ignoreCase = true)
+                        val hasMedium = content.contains("[MEDIUM]", ignoreCase = true)
+                        val hasEasy = content.contains("[EASY]", ignoreCase = true)
+
+                        val cleanContent = content
+                            .replace("[HARD]", "", ignoreCase = true)
+                            .replace("[MEDIUM]", "", ignoreCase = true)
+                            .replace("[EASY]", "", ignoreCase = true)
+                            .trim()
+
+                        if (hasHard || hasMedium || hasEasy) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            ) {
+                                val (tagText, tagColor) = when {
+                                    hasHard -> "HARD COGNITIVE WORK" to Redline
+                                    hasMedium -> "MEDIUM COMPLEXITY" to Color(0xFFFFC045)
+                                    else -> "ROUTINE STUDY / EASY" to Color(0xFF00ADB5)
+                                }
+                                Surface(
+                                    color = tagColor.copy(alpha = 0.15f),
+                                    border = BorderStroke(1.dp, tagColor.copy(alpha = 0.5f)),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = tagText,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                        color = tagColor,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Style bold elements in the content text (e.g. **Task Name**)
+                        val annotatedText = buildAnnotatedString {
+                            var currentIndex = 0
+                            val regex = Regex("\\*\\*(.*?)\\*\\*")
+                            val matches = regex.findAll(cleanContent)
+                            
+                            for (match in matches) {
+                                val start = match.range.first
+                                val end = match.range.last + 1
+                                
+                                // Append preceding text
+                                if (start > currentIndex) {
+                                    append(cleanContent.substring(currentIndex, start))
+                                }
+                                
+                                // Append bold match
+                                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) {
+                                    append(match.groupValues[1])
+                                }
+                                
+                                currentIndex = end
+                            }
+                            
+                            if (currentIndex < cleanContent.length) {
+                                append(cleanContent.substring(currentIndex))
+                            }
+                        }
+
+                        Text(
+                            text = annotatedText,
+                            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                            color = OnDark
+                        )
+                    }
+                }
+            } else {
+                // Regular paragraph
+                val annotatedParagraph = buildAnnotatedString {
+                    var currentIndex = 0
+                    val regex = Regex("\\*\\*(.*?)\\*\\*")
+                    val matches = regex.findAll(trimmedLine)
+                    
+                    for (match in matches) {
+                        val start = match.range.first
+                        val end = match.range.last + 1
+                        
+                        if (start > currentIndex) {
+                            append(trimmedLine.substring(currentIndex, start))
+                        }
+                        
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) {
+                            append(match.groupValues[1])
+                        }
+                        
+                        currentIndex = end
+                    }
+                    
+                    if (currentIndex < trimmedLine.length) {
+                        append(trimmedLine.substring(currentIndex))
+                    }
+                }
+
+                Text(
+                    text = annotatedParagraph,
+                    style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+                    color = OnDarkVariant,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                )
             }
         }
     }
