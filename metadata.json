@@ -1,0 +1,6 @@
+{
+  "name": "SNOW-X",
+  "description": "An academic focus companion, task manager, and dynamic study dashboard with a built-in Pomodoro timer and Gemini-powered smart learning insights.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
