@@ -108,9 +108,10 @@ fun TasksTab(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Redline.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                    .border(1.dp, Redline.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
                     .testTag("add_task_form_card"),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                shape = RoundedCornerShape(24.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -360,12 +361,12 @@ fun TaskFullRowItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(SurfaceDark)
             .border(
                 1.dp,
                 if (task.isInProgress) Redline.copy(alpha = 0.5f) else OutlineDark,
-                RoundedCornerShape(10.dp)
+                RoundedCornerShape(16.dp)
             )
             .clickable { onToggle() }
             .padding(vertical = 12.dp, horizontal = 16.dp),

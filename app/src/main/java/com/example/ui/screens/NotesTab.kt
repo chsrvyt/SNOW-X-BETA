@@ -99,9 +99,10 @@ fun NotesTab(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Redline.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                    .border(1.dp, Redline.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
                     .testTag("new_note_form_card"),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                shape = RoundedCornerShape(24.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -193,9 +194,10 @@ fun NotesTab(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, OutlineDark, RoundedCornerShape(12.dp))
+                    .border(1.dp, OutlineDark, RoundedCornerShape(24.dp))
                     .testTag("note_detail_view_card"),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                shape = RoundedCornerShape(24.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -350,10 +352,11 @@ fun NoteCardItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, OutlineDark, RoundedCornerShape(10.dp))
+            .border(1.dp, OutlineDark, RoundedCornerShape(16.dp))
             .clickable { onClick() }
             .testTag("note_card_${note.id}"),
-        colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+        colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier

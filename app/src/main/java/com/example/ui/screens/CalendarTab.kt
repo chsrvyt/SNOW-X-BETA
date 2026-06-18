@@ -93,9 +93,10 @@ fun CalendarTab(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, Redline.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                    .border(1.dp, Redline.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
                     .testTag("add_event_form_card"),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDark)
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                shape = RoundedCornerShape(24.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -266,9 +267,9 @@ fun CalendarEventRowItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(SurfaceDark)
-            .border(1.dp, OutlineDark, RoundedCornerShape(10.dp))
+            .border(1.dp, OutlineDark, RoundedCornerShape(16.dp))
             .padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically

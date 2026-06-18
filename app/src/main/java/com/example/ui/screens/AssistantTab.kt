@@ -89,9 +89,9 @@ fun AssistantTab(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(24.dp))
                 .background(SurfaceDarker)
-                .border(1.dp, OutlineDark, RoundedCornerShape(12.dp))
+                .border(1.dp, OutlineDark, RoundedCornerShape(24.dp))
         ) {
             LazyColumn(
                 state = listState,
@@ -146,13 +146,13 @@ fun AssistantTab(
                 suggestions.forEach { (label, actionPrompt) ->
                     Box(
                         modifier = Modifier
-                            .background(SurfaceDark, RoundedCornerShape(6.dp))
-                            .border(1.dp, OutlineDark, RoundedCornerShape(6.dp))
+                            .background(SurfaceDark, RoundedCornerShape(12.dp))
+                            .border(1.dp, OutlineDark, RoundedCornerShape(12.dp))
                             .clickable {
                                 chatInputText = ""
                                 viewModel.sendChatMessage(actionPrompt)
                             }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Text(text = label, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold), color = OnDark)
                     }
