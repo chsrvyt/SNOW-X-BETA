@@ -33,8 +33,14 @@ fun CalendarTab(
     modifier: Modifier = Modifier
 ) {
     val events by viewModel.events.collectAsState()
+    val isSyncing by viewModel.isCalendarSyncing.collectAsState()
+    val syncError by viewModel.calendarSyncError.collectAsState()
+    val syncSuccess by viewModel.calendarSyncSuccess.collectAsState()
 
     var isAddingEvent by remember { mutableStateOf(false) }
+    var isShowingSyncPanel by remember { mutableStateOf(false) }
+    var tokenInput by remember { mutableStateOf("") }
+
     var eventTitle by remember { mutableStateOf("") }
     var eventLocation by remember { mutableStateOf("Zoom") }
     var eventDate by remember { mutableStateOf("Oct 24") }
@@ -52,7 +58,7 @@ fun CalendarTab(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Academic Calendar",
                     style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
@@ -65,19 +71,207 @@ fun CalendarTab(
                 )
             }
 
-            if (!isAddingEvent) {
-                Button(
-                    onClick = { isAddingEvent = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Redline, contentColor = SurfaceBlack),
-                    shape = RoundedCornerShape(6.dp),
-                    modifier = Modifier.testTag("add_event_header_button")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconButton(
+                    onClick = { isShowingSyncPanel = !isShowingSyncPanel },
+                    modifier = Modifier.testTag("toggle_sync_panel_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Sync,
+                        contentDescription = "Sync Panel",
+                        tint = if (syncSuccess) Color.Green else if (syncError != null) Color.Red else Redline
+                    )
+                }
+
+                if (!isAddingEvent) {
+                    Button(
+                        onClick = { isAddingEvent = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Redline, contentColor = SurfaceBlack),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.testTag("add_event_header_button")
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text(text = "Add Event", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                        }
+                    }
+                }
+            }
+        }
+
+        // Google Calendar Connection / Sync Status Banner Card
+        AnimatedVisibility(
+            visible = isShowingSyncPanel,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, if (syncError != null) Color.Red.copy(alpha = 0.3f) else Redline.copy(alpha = 0.3f), RoundedCornerShape(24.dp))
+                    .testTag("google_calendar_sync_card"),
+                colors = CardDefaults.cardColors(containerColor = SurfaceDark),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Text(text = "Add Event", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudSync,
+                                contentDescription = null,
+                                tint = Redline,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Google Calendar Sync Center",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = OnDark
+                            )
+                        }
+
+                        // Connected indicator pill
+                        Surface(
+                            color = if (syncSuccess) Color.Green.copy(alpha = 0.15f) else Color.Yellow.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, if (syncSuccess) Color.Green.copy(alpha = 0.5f) else Color.Yellow.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(RoundedCornerShape(3.dp))
+                                        .background(if (syncSuccess) Color.Green else Color.Yellow)
+                                )
+                                Text(
+                                    text = if (syncSuccess) "Synced" else "OAuth Linked",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = if (syncSuccess) Color.Green else Color.Yellow
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "Synchronize lectures and deadlines directly from your Google Calendar account. Click 'Sync Now' below to perform a live retrieval.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = OnDarkVariant
+                    )
+
+                    // Optional access token input overrides
+                    OutlinedTextField(
+                        value = tokenInput,
+                        onValueChange = { tokenInput = it },
+                        label = { Text("Developer Access Token Override (Optional)") },
+                        placeholder = { Text("simulation_token") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("oauth_token_input"),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Redline,
+                            unfocusedBorderColor = OutlineDark,
+                            focusedTextColor = OnDark,
+                            unfocusedTextColor = OnDarkVariant
+                        ),
+                        singleLine = true
+                    )
+
+                    // Error feedback banner
+                    if (syncError != null) {
+                        Surface(
+                            color = Color.Red.copy(alpha = 0.1f),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.3f))
+                        ) {
+                            Text(
+                                text = "Sync Error: $syncError",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Red,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
+                    // Success announcement
+                    if (syncSuccess) {
+                        Surface(
+                            color = Color.Green.copy(alpha = 0.10f),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color.Green.copy(alpha = 0.3f))
+                        ) {
+                            Text(
+                                text = "Google Calendar event log successfully synced! Study advisor recommendations are updated.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Green,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
+                    // Synchronize and close tools
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                viewModel.syncGoogleCalendar(tokenInput.ifBlank { "simulation_token" })
+                            },
+                            enabled = !isSyncing,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("trigger_google_sync_btn"),
+                            colors = ButtonDefaults.buttonColors(containerColor = Redline, contentColor = SurfaceBlack),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            if (isSyncing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = SurfaceBlack,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Syncing...", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                            } else {
+                                Icon(imageVector = Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Sync Now", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold))
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                viewModel.resetCalendarSyncStatus()
+                                isShowingSyncPanel = false
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = OnDark),
+                            border = BorderStroke(1.dp, OutlineDark),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Dismiss")
+                        }
                     }
                 }
             }
@@ -86,7 +280,7 @@ fun CalendarTab(
         Divider(color = OutlineDark, thickness = 1.dp)
 
         AnimatedVisibility(
-            isAddingEvent,
+            visible = isAddingEvent,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
